@@ -24,10 +24,10 @@ init_declarator_list
 */
 
 init_declarator_list
-: init_declarator init_declarator_list'
+: init_declarator _init_declarator_list
 ;                                       First = ('*',identifier, '('), Follow = (';')
 
-init_declarator_list'
+_init_declarator_list
 : ',' init_declarator init_declarator_list' | e
 ;                                       First = (',', e), Follow = (';')
 
@@ -56,17 +56,17 @@ direct_declarator
 */
 
 direct_declarator
-: ( IDENTIFIER | '(' declarator ')' ) direct_declarator'
+: ( IDENTIFIER | '(' declarator ')' ) _direct_declarator
 ;                                       First = (identifier, '('), Follow = (',', ';', ')')
 
-direct_declarator'
-: ( '[' CONSTANT_INT ']' | '(' ( parameter_type_list | e ) ')'  ) direct_declarator'
+_direct_declarator
+: ( '[' CONSTANT_INT ']' | '(' ( parameter_type_list | e ) ')'  ) _direct_declarator
 | e
 ;                                       First = ('[', '(', e), Follow = (',', ';', ')')
 
 pointer
-: '*'
-| '*' pointer
+: '*' pointer 
+| e
 ;                                       First = ('*'), Follow = (identifier, '(')
 
 parameter_type_list
@@ -81,11 +81,11 @@ parameter_list
 */
 
 parameter_list
-: parameter_declaration parameter_list'
+: parameter_declaration _parameter_list
 ;                                       First = (INT, VOID), Follow = (')')
 
-parameter_list'
-: ',' parameter_declaration parameter_list'
+_parameter_list
+: ',' parameter_declaration _parameter_list
 | e
 ;                                       First = (',', e), Follow = (')')
 

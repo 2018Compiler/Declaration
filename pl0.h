@@ -1,9 +1,9 @@
 #include <stdio.h>
 
-#define NRW        14     // number of reserved words
+#define NRW        16     // number of reserved words
 #define TXMAX      500    // length of identifier table
 #define MAXNUMLEN  14     // maximum number of digits in numbers
-#define NSYM       10     // maximum number of symbols in array ssym and csym
+#define NSYM       12     // maximum number of symbols in array ssym and csym
 #define MAXIDLEN   10     // length of identifiers
 
 #define MAXADDRESS 32767  // maximum address
@@ -48,7 +48,11 @@ enum symtype
 	SYM_VAR,
 	SYM_PROCEDURE,
 	SYM_BREAK,
-	SYM_CONTINUE
+	SYM_CONTINUE,
+	SYM_INT,
+	SYM_VOID, 
+	SYM_LSQBRACKET, 
+	SYM_RSQBRACKET
 };
 
 enum idtype
@@ -138,24 +142,24 @@ char* word[NRW + 1] =
 {
 	"", /* place holder */
 	"begin", "call", "const", "do","else", "end","if",
-	"odd", "procedure", "then", "var", "while", "break", "continue"
+	"odd", "procedure", "then", "var", "while", "break", "continue", "int", "void"
 };
 
 int wsym[NRW + 1] =
 {
 	SYM_NULL, SYM_BEGIN, SYM_CALL, SYM_CONST, SYM_DO, SYM_ELSE, SYM_END,
-	SYM_IF, SYM_ODD, SYM_PROCEDURE, SYM_THEN, SYM_VAR, SYM_WHILE, SYM_BREAK, SYM_CONTINUE
+	SYM_IF, SYM_ODD, SYM_PROCEDURE, SYM_THEN, SYM_VAR, SYM_WHILE, SYM_BREAK, SYM_CONTINUE, SYM_INT, SYM_VOID
 };
 
 int ssym[NSYM + 1] =
 {
 	SYM_NULL, SYM_PLUS, SYM_MINUS, SYM_TIMES, SYM_SLASH,
-	SYM_LPAREN, SYM_RPAREN, SYM_EQU, SYM_COMMA, SYM_PERIOD, SYM_SEMICOLON
+	SYM_LPAREN, SYM_RPAREN, SYM_EQU, SYM_COMMA, SYM_PERIOD, SYM_SEMICOLON, SYM_LSQBRACKET, SYM_RSQBRACKET
 };
 
 char csym[NSYM + 1] =
 {
-	' ', '+', '-', '*', '/', '(', ')', '=', ',', '.', ';'
+	' ', '+', '-', '*', '/', '(', ')', '=', ',', '.', ';', '[', ']'
 };
 
 #define MAXINS   8
@@ -186,4 +190,22 @@ int break_cx[MAXLEVEL][100] = { 0 };
 int break_num[MAXLEVEL] = { 0 };
 FILE* infile;
 
+void getsym(void);
+
+
+void translation_unit();
+void declaration();
+void declaration_specifiers();
+void init_declarator_list();
+void _init_declarator_list();
+void init_declarator();
+void type_specifier();
+void declarator();
+void direct_declarator();
+void _direct_declarator();
+void pointer();
+void parameter_type_list();
+void parameter_list();
+void _parameter_list();
+void parameter_declaration();
 // EOF PL0.h
