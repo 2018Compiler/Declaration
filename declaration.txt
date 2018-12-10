@@ -1,0 +1,94 @@
+/*
+translation_unit
+: declaration
+| translation_unit declaration
+;
+*/
+
+translation_unit
+: declaration translation_unit
+;                                       First = (INT, VOID), Follow = ($)
+
+declaration
+: declaration_specifiers init_declarator_list ';'
+;                                       First = (INT, VOID), Follow = (INT, VOID, $)
+declaration_specifiers
+: type_specifier
+;                                       First = (INT, VOID), Follow = ('*',identifier, '(')
+
+/*
+init_declarator_list
+: init_declarator
+| init_declarator_list ',' init_declarator
+;
+*/
+
+init_declarator_list
+: init_declarator init_declarator_list'
+;                                       First = ('*',identifier, '('), Follow = (';')
+
+init_declarator_list'
+: ',' init_declarator init_declarator_list' | e
+;                                       First = (',', e), Follow = (';')
+
+init_declarator
+: declarator
+;                                       First = ('*',identifier, '('), Follow = (',', ';')
+
+type_specifier
+: VOID
+| INT
+;                                       First = (VOID, INT), Follow = ('*',identifier, '(')
+
+declarator
+: pointer direct_declarator
+| direct_declarator
+;                                       First = ('*',identifier, '('), Follow = (',', ';', ')')
+
+/*
+direct_declarator
+: IDENTIFIER
+| '(' declarator ')'
+| direct_declarator '[' CONSTANT_INT ']'
+| direct_declarator '(' parameter_type_list ')'
+| direct_declarator '(' ')'
+;
+*/
+
+direct_declarator
+: ( IDENTIFIER | '(' declarator ')' ) direct_declarator'
+;                                       First = (identifier, '('), Follow = (',', ';', ')')
+
+direct_declarator'
+: ( '[' CONSTANT_INT ']' | '(' ( parameter_type_list | e ) ')'  ) direct_declarator'
+| e
+;                                       First = ('[', '(', e), Follow = (',', ';', ')')
+
+pointer
+: '*'
+| '*' pointer
+;                                       First = ('*'), Follow = (identifier, '(')
+
+parameter_type_list
+: parameter_list
+;                                       First = (INT, VOID), Follow = (')')
+
+/*
+parameter_list
+: parameter_declaration
+| parameter_list ',' parameter_declaration
+;
+*/
+
+parameter_list
+: parameter_declaration parameter_list'
+;                                       First = (INT, VOID), Follow = (')')
+
+parameter_list'
+: ',' parameter_declaration parameter_list'
+| e
+;                                       First = (',', e), Follow = (')')
+
+parameter_declaration
+: declaration_specifiers declarator
+;                                       First = (INT, VOID), Follow = (INT, VOID)
