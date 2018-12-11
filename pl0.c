@@ -519,7 +519,6 @@ void statement(symset fsys)
 {
 	int i, cx1, cx2;
 	symset set1, set;
-
 	if (sym == SYM_IDENTIFIER){
 		set = uniteset(fsys, createset(SYM_BECOMES));
 		assign(set);
@@ -716,7 +715,11 @@ void block(symset fsys)
 			while (sym == SYM_IDENTIFIER);
 		} // if
 
-		if (sym == SYM_VAR)
+        if (sym == SYM_INT || sym == SYM_VOID){
+            translation_unit();
+        } // if
+
+        if (sym == SYM_VAR)
 		{ // variable declarations
 			getsym();
 			do
@@ -936,6 +939,146 @@ void interpret()
 	printf("End executing PL/0 program.\n");
 } // interpret
 
+typedef struct{
+    int TYPE;
+    int SIZE;
+}type_info;
+
+void translation_unit(){
+    if(sym == SYM_INT || sym == SYM_VOID){
+        declaration();
+        translation_unit();
+    }
+}
+
+void declaration(){
+    declaration_specifiers();
+    init_declarator_list();
+    if(sym == SYM_SEMICOLON)
+        getsym();
+}
+
+void declaration_specifiers(){
+    type_specifier();
+}
+
+void init_declarator_list(){
+    init_declarator();
+    _init_declarator_list();
+}
+
+void _init_declarator_list(){
+	if(sym == SYM_COMMA){
+		getsym();
+		init_declarator();
+		_init_declarator_list();
+	}
+}
+
+void init_declarator(){
+    declarator();
+}
+
+void type_specifier(){
+    if(sym == SYM_INT){
+        getsym();
+    }
+    else if(sym == SYM_VOID){
+        getsym();
+    }
+    else{
+        /*Some error information*/
+    }
+}
+
+void declarator(){
+    if(sym == SYM_TIMES){
+        pointer();
+        direct_declarator();
+    }
+    else{
+        direct_declarator();
+    }
+}
+
+void direct_declarator(){
+    if(sym == SYM_IDENTIFIER){
+        getsym();
+        _direct_declarator();
+    }
+    else if(sym == SYM_LPAREN){
+        getsym();
+        declarator();
+        if(sym == SYM_RPAREN)
+            getsym();
+        else{
+            /*Some error information.*/
+        }
+    }
+}
+
+void _direct_declarator(){
+    if(sym == SYM_LSQBRACKET || sym == SYM_LPAREN){
+        if(sym == SYM_LSQBRACKET){
+            getsym();
+            if(sym == SYM_NUMBER){
+                getsym();
+            }
+            else{
+                /*Some error*/
+            }
+         if(sym == SYM_RSQBRACKET){
+                getsym();
+            }
+            else{
+                /*Some error*/
+            }
+        }
+        else if(sym == SYM_LPAREN){
+            getsym();
+            if(sym == SYM_INT || sym == SYM_VOID)
+                parameter_type_list();
+            if(sym == SYM_RPAREN)
+                getsym();
+            else{
+                /*Some error*/
+            }
+        }
+        _direct_declarator();
+    }
+}
+
+void pointer(){
+    if(sym == SYM_TIMES){
+        getsym();
+        pointer();
+    }
+}
+
+void parameter_type_list(){
+    parameter_list();
+}
+
+void parameter_list(){
+    parameter_declaration();
+    _parameter_list();
+}
+
+void _parameter_list(){
+    if(sym == SYM_COMMA){
+        getsym();
+        parameter_declaration();
+        _parameter_list();
+    }
+}
+
+void parameter_declaration(){
+    declaration_specifiers();
+    declarator();
+}
+
+
+
 //////////////////////////////////////////////////////////////////////
 void main ()
 {
@@ -956,8 +1099,8 @@ void main ()
 	relset = createset(SYM_EQU, SYM_NEQ, SYM_LES, SYM_LEQ, SYM_GTR, SYM_GEQ, SYM_NULL);	//Relation Set
 	
 	// create begin symbol sets
-	declbegsys = createset(SYM_CONST, SYM_VAR, SYM_PROCEDURE, SYM_NULL);					//Declaration Beginnging Symbol Set
-	statbegsys = createset(SYM_BEGIN, SYM_CALL, SYM_IF, SYM_WHILE, SYM_NULL);       		//Statement Beginning Symbol Set
+	declbegsys = createset(SYM_VOID, SYM_INT, SYM_CONST, SYM_VAR, SYM_PROCEDURE, SYM_NULL);					//Declaration Beginnging Symbol Set
+	statbegsys = createset(SYM_BEGIN, SYM_CALL, SYM_IF, SYM_WHILE, SYM_NULL );       		//Statement Beginning Symbol Set
 	facbegsys = createset(SYM_IDENTIFIER, SYM_NUMBER, SYM_LPAREN, SYM_MINUS, SYM_NULL);	//Factor Beginning Symbol Set
 
 	err = cc = cx = ll = 0; // initialize global variables
@@ -998,3 +1141,5 @@ void main ()
 
 //////////////////////////////////////////////////////////////////////
 // eof pl0.c
+
+

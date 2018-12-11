@@ -28,7 +28,7 @@ init_declarator_list
 ;                                       First = ('*',identifier, '('), Follow = (';')
 
 _init_declarator_list
-: ',' init_declarator init_declarator_list' | e
+: ',' init_declarator _init_declarator_list | e
 ;                                       First = (',', e), Follow = (';')
 
 init_declarator
