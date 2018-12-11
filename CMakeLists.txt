@@ -1,5 +1,0 @@
-cmake_minimum_required(VERSION 3.2)
-PROJECT(Declaration)
-SET_DIRECTORY_PROPERTIES('C:\\Users\\wo\\Desktop\\Declaration')
-add_executable(decl pl0.c)
-INCLUDE_DIRECTORIES('C:\\MinGW\\include')
