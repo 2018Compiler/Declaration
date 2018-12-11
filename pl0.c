@@ -1094,11 +1094,13 @@ void type_specifier(){
 int pointer_level = 0;
 void declarator(){
     if(sym == SYM_TIMES){
+        int temp = pointer_level;
         pointer_level = 0;
         pointer();
         direct_declarator();
-        for(int i = pointer_level; i > 0; i--)
+        for(; pointer_level > 0; pointer_level--)
             store_a_decl(SYM_TIMES, 0, 0);
+        pointer_level = temp;
     }
     else{
         direct_declarator();
@@ -1187,8 +1189,6 @@ void parameter_declaration(){
     declaration_specifiers();
     declarator();
 }
-
-
 
 //////////////////////////////////////////////////////////////////////
 void main ()
