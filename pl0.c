@@ -942,10 +942,39 @@ void interpret()
 typedef struct{
     int TYPE;
     int SIZE;
+    char * NAME;
 }type_info;
+
+type_info *stored_decl;
+int iden_count, decl_storage, decl_count;
+
+void store_a_decl(int type, int size, char * name){
+    if(decl_count >= decl_storage){
+        decl_storage += 10;
+        stored_decl = realloc(stored_decl, decl_storage*sizeof(type_info));
+    }
+    stored_decl[decl_count].TYPE = type;
+    stored_decl[decl_count].SIZE = size;
+    if(name){
+        stored_decl[decl_count].NAME = (char *)malloc((strlen(name) + 2)*sizeof(char));
+        strcpy(stored_decl[decl_count].NAME, name);
+    }
+	decl_count++;
+}
+
+
 
 void translation_unit(){
     if(sym == SYM_INT || sym == SYM_VOID){
+        if(stored_decl != NULL){
+            free(stored_decl);
+        }
+        else{
+            iden_count = 0;
+			decl_storage = 10;
+            decl_count = 0;
+            stored_decl = (type_info *)malloc(10*sizeof(type_info));
+        }
         declaration();
         translation_unit();
     }
@@ -969,7 +998,9 @@ void init_declarator_list(){
 
 void _init_declarator_list(){
 	if(sym == SYM_COMMA){
+	    store_a_decl(SYM_COMMA, 0, 0);
 		getsym();
+		iden_count++;
 		init_declarator();
 		_init_declarator_list();
 	}
@@ -981,9 +1012,11 @@ void init_declarator(){
 
 void type_specifier(){
     if(sym == SYM_INT){
+        store_a_decl(SYM_INT, 0, 0);
         getsym();
     }
     else if(sym == SYM_VOID){
+        store_a_decl(SYM_VOID, 0, 0);
         getsym();
     }
     else{
@@ -995,6 +1028,9 @@ void declarator(){
     if(sym == SYM_TIMES){
         pointer();
         direct_declarator();
+
+        store_a_decl(SYM_TIMES, 0, 0);
+
     }
     else{
         direct_declarator();
@@ -1003,6 +1039,7 @@ void declarator(){
 
 void direct_declarator(){
     if(sym == SYM_IDENTIFIER){
+        store_a_decl(SYM_IDENTIFIER, 0, id);
         getsym();
         _direct_declarator();
     }
@@ -1022,12 +1059,13 @@ void _direct_declarator(){
         if(sym == SYM_LSQBRACKET){
             getsym();
             if(sym == SYM_NUMBER){
+                store_a_decl(SYM_LSQBRACKET, num, 0);
                 getsym();
             }
             else{
                 /*Some error*/
             }
-         if(sym == SYM_RSQBRACKET){
+            if(sym == SYM_RSQBRACKET){
                 getsym();
             }
             else{
@@ -1036,6 +1074,7 @@ void _direct_declarator(){
         }
         else if(sym == SYM_LPAREN){
             getsym();
+            store_a_decl(SYM_LPAREN, 0, 0);
             if(sym == SYM_INT || sym == SYM_VOID)
                 parameter_type_list();
             if(sym == SYM_RPAREN)
