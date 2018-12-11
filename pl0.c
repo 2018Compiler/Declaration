@@ -1032,12 +1032,12 @@ void translation_unit(){
         if(stored_decl != NULL){
             free(stored_decl);
         }
-        else{
-            iden_count = 0;
-			decl_storage = 10;
-            decl_count = 0;
-            stored_decl = (type_info *)malloc(10*sizeof(type_info));
-        }
+
+        iden_count = 0;
+        decl_storage = 10;
+        decl_count = 0;
+        stored_decl = (type_info *)malloc(10*sizeof(type_info));
+
         declaration();
         nearest_type = 0;
         reading_count = -1;
