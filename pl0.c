@@ -985,14 +985,14 @@ void output(){
             break;
         case SYM_IDENTIFIER:{
             if(fun_para_flag){
-                printf("parameter: %s is type of: ", stored_decl[reading_count].NAME);
+                printf("\nparameter: %s is type of: ", stored_decl[reading_count].NAME);
+
                 output();
             }
             else{
-                printf("%s is type of :", stored_decl[reading_count].NAME);
+                printf("\n%s is type of :", stored_decl[reading_count].NAME);
                 output();
             }
-            printf("\n");
         }
             break;
         case SYM_TIMES:{
