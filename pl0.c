@@ -963,7 +963,6 @@ void store_a_decl(int type, int size, char * name){
 	decl_count++;
 }
 
-
 int nearest_type = 0, reading_count = -1, fun_para_flag = 0;
 void output(){
     reading_count++;
@@ -986,7 +985,6 @@ void output(){
         case SYM_IDENTIFIER:{
             if(fun_para_flag){
                 printf("\nparameter: %s is type of: ", stored_decl[reading_count].NAME);
-
                 output();
             }
             else{
@@ -1027,6 +1025,19 @@ void output(){
 
 }
 
+
+int output_flag = 1;
+void declaration_err(){
+    if(output_flag){
+        output_flag = 0;
+        symset set1;
+        set1 = createset(SYM_SEMICOLON, SYM_COMMA, SYM_END, SYM_NULL);
+        test(set1, phi, 19);
+        destroyset(set1);
+        getsym();
+    }
+}
+
 void translation_unit(){
     if(sym == SYM_INT || sym == SYM_VOID){
         if(stored_decl != NULL){
@@ -1042,7 +1053,9 @@ void translation_unit(){
         nearest_type = 0;
         reading_count = -1;
         fun_para_flag = 0;
-        output();
+        if(output_flag)
+            output();
+        output_flag = 1;
         translation_unit();
     }
 }
@@ -1087,7 +1100,8 @@ void type_specifier(){
         getsym();
     }
     else{
-        /*Some error information*/
+        declaration_err();
+        printf("\nUndefined type of variable: %s\n", id);
     }
 }
 
@@ -1118,7 +1132,8 @@ void direct_declarator(){
         if(sym == SYM_RPAREN)
             getsym();
         else{
-            /*Some error information.*/
+            declaration_err();
+            printf("\nUnpaired parentheses.\n");
         }
     }
     _direct_declarator();
@@ -1133,13 +1148,15 @@ void _direct_declarator(){
                 getsym();
             }
             else{
-                /*Some error*/
+                declaration_err();
+                printf("\nSize of the array required.\n");
             }
             if(sym == SYM_RSQBRACKET){
                 getsym();
             }
             else{
-                /*Some error*/
+                declaration_err();
+                printf("\nUnpaired square bracket.\n");
             }
         }
         else if(sym == SYM_LPAREN){
@@ -1152,7 +1169,8 @@ void _direct_declarator(){
                 store_a_decl(SYM_RPAREN, 0, 0);
             }
             else{
-                /*Some error*/
+                declaration_err();
+                printf("\nUnpaired parentheses.");
             }
         }
         _direct_declarator();

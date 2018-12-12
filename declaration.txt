@@ -6,7 +6,7 @@ translation_unit
 */
 
 translation_unit
-: declaration translation_unit
+: declaration translation_unit | e
 ;                                       First = (INT, VOID), Follow = ($)
 
 declaration
