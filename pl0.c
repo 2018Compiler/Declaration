@@ -940,92 +940,7 @@ void interpret()
 	printf("End executing PL/0 program.\n");
 } // interpret
 
-typedef struct{
-    int TYPE;
-    int SIZE;
-    char * NAME;
-}type_info;
-
-type_info *stored_decl;
-int iden_count, decl_storage, decl_count;
-
-void store_a_decl(int type, int size, char * name){
-    if(decl_count >= decl_storage){
-        decl_storage += 10;
-        stored_decl = realloc(stored_decl, decl_storage*sizeof(type_info));
-    }
-    stored_decl[decl_count].TYPE = type;
-    stored_decl[decl_count].SIZE = size;
-    if(name){
-        stored_decl[decl_count].NAME = (char *)malloc((strlen(name) + 2)*sizeof(char));
-        strcpy(stored_decl[decl_count].NAME, name);
-    }
-	decl_count++;
-}
-
-int nearest_type = 0, reading_count = -1, fun_para_flag = 0;
-void output(){
-    reading_count++;
-    if(reading_count >= decl_count){
-        if(nearest_type == SYM_INT)
-            printf("int");
-        else
-            printf("void");
-        return;
-    }
-    switch (stored_decl[reading_count].TYPE){
-        case SYM_VOID:
-        case SYM_INT:{
-            int temp = nearest_type;
-            nearest_type = stored_decl[reading_count].TYPE;
-            output();
-            nearest_type = temp;
-        }
-            break;
-        case SYM_IDENTIFIER:{
-            if(fun_para_flag){
-                printf("\nparameter: %s is type of: ", stored_decl[reading_count].NAME);
-                output();
-            }
-            else{
-                printf("\n%s is type of :", stored_decl[reading_count].NAME);
-                output();
-            }
-        }
-            break;
-        case SYM_TIMES:{
-            printf("pointer(");
-            output();
-            printf(")");
-        }
-            break;
-        case SYM_LSQBRACKET:{
-            printf("array(%d, ", stored_decl[reading_count].SIZE);
-            output();
-            printf(")");
-        }
-            break;
-        case SYM_LPAREN:{
-            fun_para_flag += 1;
-            output();
-        }
-            break;
-        case SYM_RPAREN:{
-            fun_para_flag -= 1;
-            output();
-        }
-        case SYM_COMMA:{
-            if(nearest_type == SYM_INT)
-                printf("int");
-            else
-                printf("void");
-            output();
-        }
-    }
-
-}
-
-
+////////////////////////////////////////////////////////////
 int output_flag = 1;
 void declaration_err(){
     if(output_flag){
@@ -1038,33 +953,65 @@ void declaration_err(){
     }
 }
 
+typedef struct{
+    int direct_father;
+    char type[300];
+    char head[100];
+}IdenInfo;
+IdenInfo iden_info[10];
+int iden_info_storage = 10, iden_info_processing, father = 0;
+int right_parentheses, nearest_type, fun_para_flag;
+int HEAD = 1, TYPE = 2;
+
+void init_iden_info(int k){
+    for(int i=k; i < iden_info_storage; i++){
+        iden_info[i].head[0] = '\0';
+        iden_info[i].type[0] = '\0';
+    }
+}
+
+void add_output(int flag, int num, ...) {
+    va_list p;
+    char* arg;
+    va_start(p, num);
+    for(;num > 0; num--) {
+        arg = va_arg(p, char*);
+        if(flag == HEAD)
+            strcat(iden_info[iden_info_processing].head, arg);
+        else if(flag == TYPE)
+            strcat(iden_info[iden_info_processing].type, arg);
+    }
+    va_end(p);
+}
+
+void output(){
+    printf(iden_info[iden_info_processing].head);
+    printf(iden_info[iden_info_processing].type);
+    printf("\n");
+}
+
 void translation_unit(){
     if(sym == SYM_INT || sym == SYM_VOID){
-        if(stored_decl != NULL){
-            free(stored_decl);
-        }
 
-        iden_count = 0;
-        decl_storage = 10;
-        decl_count = 0;
-        stored_decl = (type_info *)malloc(10*sizeof(type_info));
-
+        init_iden_info(0);
+        iden_info_processing = -1;
+        right_parentheses = 0;
         declaration();
         nearest_type = 0;
-        reading_count = -1;
         fun_para_flag = 0;
-        if(output_flag)
-            output();
         output_flag = 1;
         translation_unit();
     }
 }
 
 void declaration(){
+    int temp = nearest_type;
+    nearest_type = sym;
     declaration_specifiers();
     init_declarator_list();
     if(sym == SYM_SEMICOLON)
         getsym();
+    nearest_type = temp;
 }
 
 void declaration_specifiers(){
@@ -1077,12 +1024,29 @@ void init_declarator_list(){
 }
 
 void _init_declarator_list(){
+    int temp = right_parentheses;
+    if(nearest_type == SYM_INT)
+        add_output(TYPE, 1, "int");
+    else if(nearest_type == SYM_VOID)
+        add_output(TYPE, 1, "void");
+    char str[100];
+    int i;
+    for(i = 0; i < right_parentheses; i++)
+        str[i] = ')';
+    str[i] = '\0';
+    add_output(TYPE, 1, str);
+
+    output();
+    iden_info_processing = -1;
+    right_parentheses = 0;
+    init_iden_info(iden_info_processing);
 	if(sym == SYM_COMMA){
-	    store_a_decl(SYM_COMMA, 0, 0);
+//	    store_a_decl(SYM_COMMA, 0, 0);
+        right_parentheses = 0;
 		getsym();
-		iden_count++;
 		init_declarator();
 		_init_declarator_list();
+        right_parentheses = temp;
 	}
 }
 
@@ -1092,11 +1056,9 @@ void init_declarator(){
 
 void type_specifier(){
     if(sym == SYM_INT){
-        store_a_decl(SYM_INT, 0, 0);
         getsym();
     }
     else if(sym == SYM_VOID){
-        store_a_decl(SYM_VOID, 0, 0);
         getsym();
     }
     else{
@@ -1112,8 +1074,9 @@ void declarator(){
         pointer_level = 0;
         pointer();
         direct_declarator();
-        for(; pointer_level > 0; pointer_level--)
-            store_a_decl(SYM_TIMES, 0, 0);
+        for(int i = pointer_level; i > 0; i--)
+            add_output(TYPE, 1, "pointer(");
+        right_parentheses += pointer_level;
         pointer_level = temp;
     }
     else{
@@ -1123,7 +1086,12 @@ void declarator(){
 
 void direct_declarator(){
     if(sym == SYM_IDENTIFIER){
-        store_a_decl(SYM_IDENTIFIER, 0, id);
+        iden_info[iden_info_processing + 1].direct_father = father;
+        iden_info_processing++;
+        if(fun_para_flag)
+            add_output(HEAD, 3, "parameter ", id, " is type of: ");
+        else
+            add_output(HEAD, 2, id, " is type of: ");
         getsym();
     }
     else if(sym == SYM_LPAREN){
@@ -1144,7 +1112,10 @@ void _direct_declarator(){
         if(sym == SYM_LSQBRACKET){
             getsym();
             if(sym == SYM_NUMBER){
-                store_a_decl(SYM_LSQBRACKET, num, 0);
+                char num_str[100];
+                itoa(num, num_str, 10);
+                add_output(TYPE, 3, "array(", num_str, ", ");
+                right_parentheses += 1;
                 getsym();
             }
             else{
@@ -1161,12 +1132,28 @@ void _direct_declarator(){
         }
         else if(sym == SYM_LPAREN){
             getsym();
-            store_a_decl(SYM_LPAREN, 0, 0);
+            fun_para_flag += 1;
+            father = iden_info_processing;
             if(sym == SYM_INT || sym == SYM_VOID)
                 parameter_type_list();
+
             if(sym == SYM_RPAREN){
                 getsym();
-                store_a_decl(SYM_RPAREN, 0, 0);
+                fun_para_flag -= 1;
+                int temp = iden_info_processing;
+                char str[300];
+                str[0] = '\0';
+                iden_info_processing = iden_info[iden_info_processing].direct_father;
+                father = iden_info[iden_info_processing].direct_father;
+                add_output(TYPE, 1, "function(");
+                right_parentheses++;
+                for(int i = iden_info_processing + 1; i <= temp; i ++){
+                    add_output(TYPE, 2, iden_info[i].type, " X ");
+                }
+                init_iden_info(iden_info_processing + 1);
+                iden_info[iden_info_processing].type[strlen(iden_info[iden_info_processing].type) - 3] = '\0';
+                add_output(TYPE, 1, " => ");
+
             }
             else{
                 declaration_err();
@@ -1176,7 +1163,6 @@ void _direct_declarator(){
         _direct_declarator();
     }
 }
-
 
 void pointer(){
     if(sym == SYM_TIMES){
@@ -1191,15 +1177,37 @@ void parameter_type_list(){
 }
 
 void parameter_list(){
+    int temp = nearest_type;
+    nearest_type = sym;
     parameter_declaration();
     _parameter_list();
+    nearest_type = temp;
 }
 
 void _parameter_list(){
+    int temp = right_parentheses;
+    if(nearest_type == SYM_INT)
+        add_output(TYPE, 1, "int");
+    else if(nearest_type == SYM_VOID)
+        add_output(TYPE, 1, "void");
+    char str[100];
+    int i;
+    for(i = 0; i < right_parentheses; i++)
+        str[i] = ')';
+    str[i] = '\0';
+    add_output(TYPE, 1, str);
+
+    output();
+
     if(sym == SYM_COMMA){
+        right_parentheses = 0;
         getsym();
+        int temp2 = nearest_type;
+        nearest_type = sym;
         parameter_declaration();
         _parameter_list();
+        nearest_type = temp2;
+        right_parentheses = temp;
     }
 }
 
