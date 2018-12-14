@@ -1177,11 +1177,13 @@ void parameter_type_list(){
 }
 
 void parameter_list(){
-    int temp = nearest_type;
+    int temp = nearest_type, temp2 = right_parentheses;
     nearest_type = sym;
+    right_parentheses = 0;
     parameter_declaration();
     _parameter_list();
     nearest_type = temp;
+    right_parentheses = temp2;
 }
 
 void _parameter_list(){
