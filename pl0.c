@@ -960,7 +960,7 @@ typedef struct{
 }IdenInfo;
 IdenInfo iden_info[10];
 int iden_info_storage = 10, iden_info_processing, father = 0;
-int right_parentheses, nearest_type, fun_para_flag;
+int right_parentheses, nearest_type, fun_para_flag, is_function_flag;
 int HEAD = 1, TYPE = 2;
 
 void init_iden_info(int k){
@@ -984,22 +984,115 @@ void add_output(int flag, int num, ...) {
     va_end(p);
 }
 
+char * abstract_parentheses(char *source, char * dest){
+    int length = strlen(source);
+    int l = 0, r = 0, paren_level = 0;
+    for(int i = 0; i < length; i++){
+        if(source[i] == '('){
+            paren_level++;
+            if(paren_level == 1)
+                l = i;
+        }
+        else if(source[i] == ')'){
+            if(paren_level == 1)
+                r = i;
+            paren_level--;
+        }
+    }
+    if(l > 0 && r > 0){
+        memcpy(dest, &source[l + 1], r - l - 1);
+        dest[r - l - 1] = '\0';
+    }
+    else
+        strcpy(dest, source);
+}
+
+void non_function(char * type){
+    int length = strlen(type), size = 1;
+    for(int i = 0; i < length; i++){
+        if(type[i] == '('){
+            int j = i + 1, num = 0;
+            for(; j < length; j++){
+                if(type[j] >= '0' && type[j] <= '9'){
+                    num *= 10;
+                    num += type[j] - '0';
+                }
+                else break;
+            }
+            if(!num)
+                break;
+            size *= num;
+            i = j;
+        }
+    }
+    printf("OK! type size : %d\n\n", size);
+
+    char ValueType[300];
+    int first_char = 0;
+    abstract_parentheses(type, ValueType);
+    for(int i = 0; i < strlen(ValueType); i++){
+        if(ValueType[i] >= 'a' && ValueType[i] <= 'z'){
+            first_char = i;
+            break;
+        }
+    }
+    printf("ValueType is : %s\n\n", &ValueType[first_char]);
+}
+
+void function(char * type){
+    if (type[0] == 'a'){
+        printf("\nError: Array of function is not allowed.\nerror!\n");
+        return;
+    }
+    else{
+        char ValueType[300];
+        int para_i_right = 0, return_i_left = 0;
+        abstract_parentheses(type, ValueType);
+        for(int i = 0; i < strlen(ValueType); i++){
+            if(ValueType[i] == '=' && ValueType[i+1] == '>'){
+                para_i_right = i;
+                return_i_left = i + 3;
+                break;
+            }
+        }
+        if(ValueType[return_i_left] == 'a'){
+            printf("\nError: Array or Function can not be returned from functions.\nerror!\n");
+            return;
+        }
+        ValueType[para_i_right] = '\0';
+        printf("OK!\nPara-Type is : %s, Return-Type is : %s\n", ValueType, &ValueType[return_i_left]);
+    }
+
+}
+
 void output(){
-    printf(iden_info[iden_info_processing].head);
-    printf(iden_info[iden_info_processing].type);
-    printf("\n");
+    if(output_flag){
+        printf(iden_info[iden_info_processing].head);
+        printf(iden_info[iden_info_processing].type);
+        if(!fun_para_flag){
+            printf("\nType checking...");
+            if(is_function_flag)
+                function(iden_info[iden_info_processing].type);
+            else
+                non_function(iden_info[iden_info_processing].type);
+            is_function_flag = 0;
+        }
+        printf("\n");
+    }
+    else
+        output_flag = 1;
 }
 
 void translation_unit(){
     if(sym == SYM_INT || sym == SYM_VOID){
-
         init_iden_info(0);
         iden_info_processing = -1;
         right_parentheses = 0;
-        declaration();
+        is_function_flag = 0;
         nearest_type = 0;
         fun_para_flag = 0;
         output_flag = 1;
+        declaration();
         translation_unit();
     }
 }
@@ -1063,6 +1156,7 @@ void type_specifier(){
     }
     else{
         declaration_err();
+        output_flag = 0;
         printf("\nUndefined type of variable: %s\n", id);
     }
 }
@@ -1101,6 +1195,7 @@ void direct_declarator(){
             getsym();
         else{
             declaration_err();
+            output_flag = 0;
             printf("\nUnpaired parentheses.\n");
         }
     }
@@ -1120,6 +1215,7 @@ void _direct_declarator(){
             }
             else{
                 declaration_err();
+                output_flag = 0;
                 printf("\nSize of the array required.\n");
             }
             if(sym == SYM_RSQBRACKET){
@@ -1127,11 +1223,13 @@ void _direct_declarator(){
             }
             else{
                 declaration_err();
+                output_flag = 0;
                 printf("\nUnpaired square bracket.\n");
             }
         }
         else if(sym == SYM_LPAREN){
             getsym();
+            is_function_flag = 1;
             fun_para_flag += 1;
             father = iden_info_processing;
             if(sym == SYM_INT || sym == SYM_VOID)
@@ -1157,6 +1255,7 @@ void _direct_declarator(){
             }
             else{
                 declaration_err();
+                output_flag = 0;
                 printf("\nUnpaired parentheses.");
             }
         }
