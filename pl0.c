@@ -946,22 +946,29 @@ void declaration_err(){
     if(output_flag){
         output_flag = 0;
         symset set1;
-        set1 = createset(SYM_SEMICOLON, SYM_COMMA, SYM_END, SYM_NULL);
+        set1 = createset(SYM_SEMICOLON, SYM_COMMA, SYM_END, SYM_IDENTIFIER, SYM_NULL);
         test(set1, phi, 19);
         destroyset(set1);
         getsym();
     }
 }
 
+// IdenInfo:
+// direct_father, 这一个identifier上一级嵌套的变量的iden_info的编号; right_parentheses, 右括号数量;
+// specifier, 左边最近的类型标识符, 如int, void
+// type, 类型信息; head, 类型信息前的说明文字
 typedef struct{
-    int direct_father;
+    int direct_father, right_parentheses, specifier;
     char type[300];
     char head[100];
 }IdenInfo;
+
 IdenInfo iden_info[10];
-int iden_info_storage = 10, iden_info_processing, father = 0;
-int right_parentheses, nearest_type, fun_para_flag, is_function_flag;
-int HEAD = 1, TYPE = 2;
+// father, 当前正处理的identifier上一级嵌套的变量的iden_info的编号
+int iden_info_storage = 10, iden_info_processing, father = 0, stack_top = 0;
+// fun_para_flag, 大于0的话当前处理的变量是函数的参数列表内的变量, 否则不是; is_function_flag, 是1表示当前处理的是函数的定义
+int right_parentheses, specifier, fun_para_flag, is_function_flag;
+
 
 void init_iden_info(int k){
     for(int i=k; i < iden_info_storage; i++){
@@ -970,6 +977,17 @@ void init_iden_info(int k){
     }
 }
 
+// 入栈操作, 保存当前处理的identifier对应的iden_info的各项信息
+void push_iden_info(){
+    iden_info[iden_info_processing].direct_father = father;
+    iden_info[iden_info_processing].right_parentheses = right_parentheses;
+    iden_info[iden_info_processing].specifier = specifier;
+    iden_info_processing++;
+}
+
+
+int HEAD = 1, TYPE = 2;
+// 将可变参数列表内的所有字符串拼接到指定位置(head或type), num指示可变参数列表的大小, flag指示拼接到head还是type
 void add_output(int flag, int num, ...) {
     va_list p;
     char* arg;
@@ -984,6 +1002,7 @@ void add_output(int flag, int num, ...) {
     va_end(p);
 }
 
+// 取出字符串内的第一对括号间的内容
 char * abstract_parentheses(char *source, char * dest){
     int length = strlen(source);
     int l = 0, r = 0, paren_level = 0;
@@ -1007,6 +1026,7 @@ char * abstract_parentheses(char *source, char * dest){
         strcpy(dest, source);
 }
 
+// 变量的类型不是函数时的检查输出函数
 void non_function(char * type){
     int length = strlen(type), size = 1;
     for(int i = 0; i < length; i++){
@@ -1039,6 +1059,7 @@ void non_function(char * type){
     printf("ValueType is : %s\n\n", &ValueType[first_char]);
 }
 
+// 变量的类型是函数时的检查输出函数
 void function(char * type){
     if (type[0] == 'a'){
         printf("\nError: Array of function is not allowed.\nerror!\n");
@@ -1065,6 +1086,7 @@ void function(char * type){
 
 }
 
+// 总的输出函数
 void output(){
     if(output_flag){
         printf(iden_info[iden_info_processing].head);
@@ -1086,10 +1108,12 @@ void output(){
 void translation_unit(){
     if(sym == SYM_INT || sym == SYM_VOID){
         init_iden_info(0);
-        iden_info_processing = -1;
+        iden_info_processing = 0;
         right_parentheses = 0;
         is_function_flag = 0;
-        nearest_type = 0;
+        specifier = 0;
+        stack_top = 0;
+        father = 0;
         fun_para_flag = 0;
         output_flag = 1;
         declaration();
@@ -1098,13 +1122,10 @@ void translation_unit(){
 }
 
 void declaration(){
-    int temp = nearest_type;
-    nearest_type = sym;
     declaration_specifiers();
     init_declarator_list();
     if(sym == SYM_SEMICOLON)
         getsym();
-    nearest_type = temp;
 }
 
 void declaration_specifiers(){
@@ -1117,10 +1138,9 @@ void init_declarator_list(){
 }
 
 void _init_declarator_list(){
-    int temp = right_parentheses;
-    if(nearest_type == SYM_INT)
+    if(specifier == SYM_INT)
         add_output(TYPE, 1, "int");
-    else if(nearest_type == SYM_VOID)
+    else if(specifier == SYM_VOID)
         add_output(TYPE, 1, "void");
     char str[100];
     int i;
@@ -1130,16 +1150,15 @@ void _init_declarator_list(){
     add_output(TYPE, 1, str);
 
     output();
-    iden_info_processing = -1;
+
+    stack_top = 0;
+    iden_info_processing = 0;
     right_parentheses = 0;
     init_iden_info(iden_info_processing);
 	if(sym == SYM_COMMA){
-//	    store_a_decl(SYM_COMMA, 0, 0);
-        right_parentheses = 0;
 		getsym();
 		init_declarator();
 		_init_declarator_list();
-        right_parentheses = temp;
 	}
 }
 
@@ -1149,9 +1168,11 @@ void init_declarator(){
 
 void type_specifier(){
     if(sym == SYM_INT){
+        specifier = SYM_INT;
         getsym();
     }
     else if(sym == SYM_VOID){
+        specifier = SYM_VOID;
         getsym();
     }
     else{
@@ -1164,6 +1185,7 @@ void type_specifier(){
 int pointer_level = 0;
 void declarator(){
     if(sym == SYM_TIMES){
+        // * 号的优先级相对 [] 和 () 较低, 所以在完成[]和()的分析后, 填入它们的类型信息后, 再加上指针的类型信息
         int temp = pointer_level;
         pointer_level = 0;
         pointer();
@@ -1180,14 +1202,15 @@ void declarator(){
 
 void direct_declarator(){
     if(sym == SYM_IDENTIFIER){
-        iden_info[iden_info_processing + 1].direct_father = father;
-        iden_info_processing++;
+        stack_top++;
         if(fun_para_flag)
             add_output(HEAD, 3, "parameter ", id, " is type of: ");
         else
             add_output(HEAD, 2, id, " is type of: ");
         getsym();
     }
+
+    // 围绕在identifier左右的括号, 与函数无关, 无须特殊处理
     else if(sym == SYM_LPAREN){
         getsym();
         declarator();
@@ -1205,6 +1228,7 @@ void direct_declarator(){
 void _direct_declarator(){
     if(sym == SYM_LSQBRACKET || sym == SYM_LPAREN){
         if(sym == SYM_LSQBRACKET){
+            // 存入array的类型和大小, 右括号数加一
             getsym();
             if(sym == SYM_NUMBER){
                 char num_str[100];
@@ -1228,35 +1252,45 @@ void _direct_declarator(){
             }
         }
         else if(sym == SYM_LPAREN){
+
+            father = iden_info_processing;
+            push_iden_info();
+            // 遇到一个identifier后的左括号, 意味着后面的identifier都是前面的identifier(father)函数的参数列表, 先处理后面的
+            // identifier, 得到类型信息, 然后回填给父identifier, 所以这里暂且更新father为iden_info_processing,
+            // push保存当前处理的iden_info的信息,并且会使iden_info_processing增大1
+
             getsym();
             is_function_flag = 1;
             fun_para_flag += 1;
-            father = iden_info_processing;
             if(sym == SYM_INT || sym == SYM_VOID)
                 parameter_type_list();
 
             if(sym == SYM_RPAREN){
                 getsym();
                 fun_para_flag -= 1;
-                int temp = iden_info_processing;
-                char str[300];
-                str[0] = '\0';
+
+                // 参数列表结束, 要回填类型信息给函数名对应的iden_info,
+                // 所以iden_info_processing更新为当前处理的iden_info的direct_father
                 iden_info_processing = iden_info[iden_info_processing].direct_father;
-                father = iden_info[iden_info_processing].direct_father;
                 add_output(TYPE, 1, "function(");
                 right_parentheses++;
-                for(int i = iden_info_processing + 1; i <= temp; i ++){
+
+                // 回填子iden_info的类型信息给父iden_info
+                for(int i = iden_info_processing + 1; i < stack_top - 1; i ++){
                     add_output(TYPE, 2, iden_info[i].type, " X ");
                 }
-                init_iden_info(iden_info_processing + 1);
-                iden_info[iden_info_processing].type[strlen(iden_info[iden_info_processing].type) - 3] = '\0';
-                add_output(TYPE, 1, " => ");
+                add_output(TYPE, 1, iden_info[stack_top - 1].type);
 
+                //初始化了当前正在处理的父iden_info以后的所有子iden_info, 所以现在的栈顶是正在处理的iden_info的下标+1
+                init_iden_info(iden_info_processing + 1);
+                add_output(TYPE, 1, " => ");
+                specifier = iden_info[iden_info_processing].specifier;
+                stack_top = iden_info_processing + 1;
             }
             else{
                 declaration_err();
                 output_flag = 0;
-                printf("\nUnpaired parentheses.");
+                printf("\nUnpaired parentheses.\n");
             }
         }
         _direct_declarator();
@@ -1276,20 +1310,14 @@ void parameter_type_list(){
 }
 
 void parameter_list(){
-    int temp = nearest_type, temp2 = right_parentheses;
-    nearest_type = sym;
-    right_parentheses = 0;
     parameter_declaration();
     _parameter_list();
-    nearest_type = temp;
-    right_parentheses = temp2;
 }
 
 void _parameter_list(){
-    int temp = right_parentheses;
-    if(nearest_type == SYM_INT)
+    if(specifier == SYM_INT)
         add_output(TYPE, 1, "int");
-    else if(nearest_type == SYM_VOID)
+    else if(specifier == SYM_VOID)
         add_output(TYPE, 1, "void");
     char str[100];
     int i;
@@ -1301,14 +1329,14 @@ void _parameter_list(){
     output();
 
     if(sym == SYM_COMMA){
-        right_parentheses = 0;
+
+        push_iden_info();
+        // 只push, 不更新father, 使得将要处理的下一个identifier的father也是当前处理的identifier的father
+
         getsym();
-        int temp2 = nearest_type;
-        nearest_type = sym;
+        specifier = sym;
         parameter_declaration();
         _parameter_list();
-        nearest_type = temp2;
-        right_parentheses = temp;
     }
 }
 
