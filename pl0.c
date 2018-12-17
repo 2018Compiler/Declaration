@@ -966,8 +966,8 @@ typedef struct{
 IdenInfo iden_info[10];
 // father, 当前正处理的identifier上一级嵌套的变量的iden_info的编号
 int iden_info_storage = 10, iden_info_processing, father = 0, stack_top = 0;
-// fun_para_flag, 大于0的话当前处理的变量是函数的参数列表内的变量, 否则不是; is_function_flag, 是1表示当前处理的是函数的定义
-int right_parentheses, specifier, fun_para_flag, is_function_flag;
+// fun_para_flag, 大于0的话当前处理的变量是函数的参数列表内的变量, 否则不是
+int right_parentheses, specifier, fun_para_flag;
 
 
 void init_iden_info(int k){
@@ -1045,7 +1045,6 @@ void non_function(char * type){
             i = j;
         }
     }
-    printf("OK! type size : %d\n\n", size);
 
     char ValueType[300];
     int first_char = 0;
@@ -1056,34 +1055,36 @@ void non_function(char * type){
             break;
         }
     }
+    if(type[0] == 'a' && ValueType[first_char] == 'f'){
+        printf("\nError: Array of functions is not allowed.\nerror!\n");
+        return;
+    }
+    printf("OK! type size : %d\n\n", size);
     printf("ValueType is : %s\n\n", &ValueType[first_char]);
 }
 
 // 变量的类型是函数时的检查输出函数
 void function(char * type){
-    if (type[0] == 'a'){
-        printf("\nError: Array of function is not allowed.\nerror!\n");
+    char ValueType[300];
+    int para_i_right = 0, return_i_left = 0, paren_level = 0;
+    abstract_parentheses(type, ValueType);
+    for(int i = 0; i < strlen(ValueType); i++){
+        if(ValueType[i] == '(')
+            paren_level++;
+        else if(ValueType[i] == ')')
+            paren_level--;
+        else if(paren_level == 0 && ValueType[i] == '=' && ValueType[i+1] == '>'){
+            para_i_right = i;
+            return_i_left = i + 3;
+            break;
+        }
+    }
+    if(ValueType[return_i_left] == 'a'){
+        printf("\nError: Array or Function can not be returned from functions.\nerror!\n");
         return;
     }
-    else{
-        char ValueType[300];
-        int para_i_right = 0, return_i_left = 0;
-        abstract_parentheses(type, ValueType);
-        for(int i = 0; i < strlen(ValueType); i++){
-            if(ValueType[i] == '=' && ValueType[i+1] == '>'){
-                para_i_right = i;
-                return_i_left = i + 3;
-                break;
-            }
-        }
-        if(ValueType[return_i_left] == 'a'){
-            printf("\nError: Array or Function can not be returned from functions.\nerror!\n");
-            return;
-        }
-        ValueType[para_i_right] = '\0';
-        printf("OK!\nPara-Type is : %s, Return-Type is : %s\n", ValueType, &ValueType[return_i_left]);
-    }
-
+    ValueType[para_i_right] = '\0';
+    printf("OK!\nPara-Type is : %s, Return-Type is : %s\n", ValueType, &ValueType[return_i_left]);
 }
 
 // 总的输出函数
@@ -1093,11 +1094,10 @@ void output(){
         printf(iden_info[iden_info_processing].type);
         if(!fun_para_flag){
             printf("\nType checking...");
-            if(is_function_flag)
+            if(iden_info[iden_info_processing].type[0] == 'f')
                 function(iden_info[iden_info_processing].type);
             else
                 non_function(iden_info[iden_info_processing].type);
-            is_function_flag = 0;
         }
         printf("\n");
     }
@@ -1110,7 +1110,6 @@ void translation_unit(){
         init_iden_info(0);
         iden_info_processing = 0;
         right_parentheses = 0;
-        is_function_flag = 0;
         specifier = 0;
         stack_top = 0;
         father = 0;
@@ -1150,11 +1149,12 @@ void _init_declarator_list(){
     add_output(TYPE, 1, str);
 
     output();
-
-    stack_top = 0;
-    iden_info_processing = 0;
-    right_parentheses = 0;
-    init_iden_info(iden_info_processing);
+	if(fun_para_flag == 0){
+    	stack_top = 0;
+    	iden_info_processing = 0;
+    	right_parentheses = 0;
+    	init_iden_info(iden_info_processing);
+	}
 	if(sym == SYM_COMMA){
 		getsym();
 		init_declarator();
@@ -1253,14 +1253,14 @@ void _direct_declarator(){
         }
         else if(sym == SYM_LPAREN){
 
-            father = iden_info_processing;
             push_iden_info();
+            right_parentheses = 0;
+            father = iden_info_processing - 1;
             // 遇到一个identifier后的左括号, 意味着后面的identifier都是前面的identifier(father)函数的参数列表, 先处理后面的
             // identifier, 得到类型信息, 然后回填给父identifier, 所以这里暂且更新father为iden_info_processing,
             // push保存当前处理的iden_info的信息,并且会使iden_info_processing增大1
 
             getsym();
-            is_function_flag = 1;
             fun_para_flag += 1;
             if(sym == SYM_INT || sym == SYM_VOID)
                 parameter_type_list();
@@ -1271,7 +1271,9 @@ void _direct_declarator(){
 
                 // 参数列表结束, 要回填类型信息给函数名对应的iden_info,
                 // 所以iden_info_processing更新为当前处理的iden_info的direct_father
-                iden_info_processing = iden_info[iden_info_processing].direct_father;
+                iden_info_processing = father;
+                father = iden_info[iden_info_processing].direct_father;
+                right_parentheses = iden_info[iden_info_processing].right_parentheses;
                 add_output(TYPE, 1, "function(");
                 right_parentheses++;
 
@@ -1279,7 +1281,8 @@ void _direct_declarator(){
                 for(int i = iden_info_processing + 1; i < stack_top - 1; i ++){
                     add_output(TYPE, 2, iden_info[i].type, " X ");
                 }
-                add_output(TYPE, 1, iden_info[stack_top - 1].type);
+                if(stack_top - 1 > iden_info_processing)
+                    add_output(TYPE, 1, iden_info[stack_top - 1].type);
 
                 //初始化了当前正在处理的父iden_info以后的所有子iden_info, 所以现在的栈顶是正在处理的iden_info的下标+1
                 init_iden_info(iden_info_processing + 1);
@@ -1325,14 +1328,11 @@ void _parameter_list(){
         str[i] = ')';
     str[i] = '\0';
     add_output(TYPE, 1, str);
-
     output();
-
     if(sym == SYM_COMMA){
-
         push_iden_info();
         // 只push, 不更新father, 使得将要处理的下一个identifier的father也是当前处理的identifier的father
-
+        right_parentheses = 0;
         getsym();
         specifier = sym;
         parameter_declaration();
